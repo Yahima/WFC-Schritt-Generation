@@ -78,12 +78,10 @@ public class WFC3D : MonoBehaviour
         foreach (var rule in rules)
             moduleTypes.Add(new(rule.Key, gameObjects[rule.Key[0..^1]].Item2));
 
+        edgeModuleTypes = moduleTypes.Where(tuple => !tuple.Item1.Contains("ground")).ToList();
 
         modules = new Module[xSize, ySize, zSize];
         newModules = new Module[xSize, ySize, zSize];
-
-        edgeModuleTypes = moduleTypes.Where(tuple => !tuple.Item1.Contains("ground")).ToList();
-        // currentCells = new List<Vector3Int>();
 
         foreach (var block in blocks)
         {
@@ -92,7 +90,6 @@ public class WFC3D : MonoBehaviour
             int y = block.y;
             int z = block.z;
 
-            //currentCells.Add(new Vector3Int(x, y, z));
 
             if ((x == 0 || x == blocks.GetLength(0) - 1 || z == 0 || z == blocks.GetLength(2) - 1) && y == 0)
                 modules[x, y, z] = new Module(new Vector3Int(x, y, z), edgeModuleTypes, true, objectSize1, 0, 0);
@@ -169,11 +166,6 @@ public class WFC3D : MonoBehaviour
                 modules[currentCell.x, currentCell.y, currentCell.z].SetObject(gameObjects[modules[currentCell.x, currentCell.y, currentCell.z].GetTileType()[0..^1]].Item1);
 
             UpdateValids();
-/*
-            if (lastState != CurrentState())
-                foreach (var module in modules)
-                    if (module.collapsed && module.model == null && !module.GetTileType().Contains("empty"))
-                        module.SetObject(gameObjects[module.GetTileType()[0..^1]].Item1);*/
 
             lastState = CurrentState();
 
@@ -218,26 +210,11 @@ public class WFC3D : MonoBehaviour
                 gameObjects = sampleManager.GetObjects();
                 moduleTypes = new List<Tuple<string, int>>();
 
-
-
                 foreach (var rule in rules)
                     moduleTypes.Add(new(rule.Key, gameObjects[rule.Key[0..^1]].Item2));
 
-                
-
                 groundModuleTypes = moduleTypes.Where(tuple => tuple.Item1.Contains("ground")).ToList();
-
-
                 overModuleTypes = moduleTypes.Where(tuple => !tuple.Item1.Contains("ground")).ToList();
-
-
-
-                /*  foreach (var group in cellGroups)
-                  {
-                      foreach (var cell in group)
-                          modules[cell.x, 0, cell.y].ResetModule();
-                  }*/
-
 
                 gridManager = new GridManager(dividedGrid.GetLength(0), height, dividedGrid.GetLength(1));
                 blocks = gridManager.CreateGrid();
