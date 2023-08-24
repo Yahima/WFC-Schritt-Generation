@@ -3,7 +3,12 @@ guid: 92d9cc380e800df4d87e45916976879b
 ModelImporter:
   serializedVersion: 21300
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Building_grp_F1_all_grp_F1_Windows_grp_F1_w_35_F1_Window_grp_18_mso
+    second: {fileID: 2100000, guid: f354a3fb39535734ba3eb6792fc9ac74, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

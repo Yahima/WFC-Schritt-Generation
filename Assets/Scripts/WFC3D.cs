@@ -18,7 +18,7 @@ public class WFC3D : MonoBehaviour
     public float yOffset1;
     public float yOffset2;
 
-    public float offset;
+    public float offset1;
     public float offset2;
 
     // Generates grid
@@ -31,8 +31,9 @@ public class WFC3D : MonoBehaviour
     private List<Tuple<string, int>> moduleTypes;
     private List<Tuple<string, int>> overModuleTypes;
 
-    List<Tuple<string, int>> edgeModuleTypes;
-    List<Tuple<string, int>> floorModuleTypes;
+    private List<Tuple<string, int>> edgeModuleTypes;
+    private List<Tuple<string, int>> groundModuleTypes;
+
     private Dictionary<string, Tuple<GameObject, int>> gameObjects;
 
     // Module adjacency rules for each direction
@@ -52,14 +53,14 @@ public class WFC3D : MonoBehaviour
     private List<string> errorStates;
     private List<History3D> history;
 
-    bool done = false;
+    private bool step1Done = false;
 
     private List<Vector3Int> currentCells;
-    List<List<Vector3Int>> cellBlocks;
+    private List<List<Vector3Int>> cellBlocks;
     private int currentIndex = 0;
 
-    string lastState = "";
-    bool end = false;
+    private string lastState = "";
+
     // Use this for initialization
     void Start()
     {
@@ -71,6 +72,7 @@ public class WFC3D : MonoBehaviour
         rules = sampleManager.GenerateRulesFromSamples();
         gameObjects = sampleManager.GetObjects();
         moduleTypes = new List<Tuple<string, int>>();
+        groundModuleTypes = new List<Tuple<string, int>>();
         overModuleTypes = new List<Tuple<string, int>>();
 
         foreach (var rule in rules)
@@ -126,9 +128,9 @@ public class WFC3D : MonoBehaviour
             int index = random.Next(0, lowEntropyList.Count);
             Vector3Int currentCell = lowEntropyList[0];
 
-            bool fertig = false;
+            bool error = true;
 
-            while (modules[currentCell.x, currentCell.y, currentCell.z].GetValidTypes().Count > 0 && !fertig)
+            while (modules[currentCell.x, currentCell.y, currentCell.z].GetValidTypes().Count > 0 && error)
             {
                 modules[currentCell.x, currentCell.y, currentCell.z].Collapse();
 
@@ -145,17 +147,16 @@ public class WFC3D : MonoBehaviour
                         }
                     }
                     history.Add(new History3D(CurrentState(), new(currentCell, modules[currentCell.x, currentCell.y, currentCell.z].GetTileType())));
-                    fertig = true;
+                    error = false;
                 }
             }
 
-            if (!fertig)
+            if (error)
             {
                 modules[currentCell.x, currentCell.y, currentCell.z].ResetModule();
+
                 if (!errorStates.Contains(CurrentState()))
-                {
                     errorStates.Add(CurrentState());
-                }
 
                 Vector3Int lastHistoryCell = history[^1].Step.Item1;
                 modules[lastHistoryCell.x, lastHistoryCell.y, lastHistoryCell.z].ResetModule();
@@ -164,39 +165,26 @@ public class WFC3D : MonoBehaviour
 
             }
 
-            UpdateValids();
+            if (modules[currentCell.x, currentCell.y, currentCell.z].IsCollapsed() && !modules[currentCell.x, currentCell.y, currentCell.z].GetTileType().Contains("empty"))
+                modules[currentCell.x, currentCell.y, currentCell.z].SetObject(gameObjects[modules[currentCell.x, currentCell.y, currentCell.z].GetTileType()[0..^1]].Item1);
 
-            if (lastState != CurrentState() && !end)
+            UpdateValids();
+/*
+            if (lastState != CurrentState())
                 foreach (var module in modules)
                     if (module.collapsed && module.model == null && !module.GetTileType().Contains("empty"))
-                        module.SetObject(gameObjects[module.GetTileType()[0..^1]].Item1);
+                        module.SetObject(gameObjects[module.GetTileType()[0..^1]].Item1);*/
 
             lastState = CurrentState();
 
-            if (done)
+            if (step1Done)
             {
                 if (CheckBlockCollapsed(currentCells))
                 {
-                    Debug.Log(currentIndex);
-                    Debug.Log(cellBlocks.Count);
                     if (currentIndex < cellBlocks.Count - 1)
                     {
                         currentIndex++;
-
                         currentCells = cellBlocks[currentIndex];
-                    }
-
-                    else
-                    {
-                        foreach (var module in modules)
-                        {
-                            if (module.GetTileType().Contains("empty"))
-                            {
-                                module.SetObjectNull();
-                            }
-                        }
-
-                        end = true;
                     }
                 }
             }
@@ -206,7 +194,7 @@ public class WFC3D : MonoBehaviour
 
         else
         {
-            if (!done)
+            if (!step1Done)
             {
                 Debug.Log("step1");
                 int[,] grid = new int[xSize, zSize];
@@ -235,9 +223,9 @@ public class WFC3D : MonoBehaviour
                 foreach (var rule in rules)
                     moduleTypes.Add(new(rule.Key, gameObjects[rule.Key[0..^1]].Item2));
 
-                floorModuleTypes = new List<Tuple<string, int>>();
+                
 
-                floorModuleTypes = moduleTypes.Where(tuple => (tuple.Item1.Contains("ground") )).ToList(); //|| tuple.Item1.Contains("empty"))
+                groundModuleTypes = moduleTypes.Where(tuple => tuple.Item1.Contains("ground")).ToList();
 
 
                 overModuleTypes = moduleTypes.Where(tuple => !tuple.Item1.Contains("ground")).ToList();
@@ -266,7 +254,7 @@ public class WFC3D : MonoBehaviour
 
                     if (dividedGrid[x, z] == 1)
                     {
-                        modules[x, y, z] = new Module(new Vector3Int(x, y, z), moduleTypes, true, objectSize2, offset, offset2);
+                        modules[x, y, z] = new Module(new Vector3Int(x, y, z), moduleTypes, true, objectSize2, offset1, offset2);
                         modules[x, y, z].CollapseTo("empty0");
                     }
 
@@ -274,16 +262,16 @@ public class WFC3D : MonoBehaviour
                     {
                         if (y == 0)
                         {
-                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), floorModuleTypes, false, objectSize2, offset, offset2);
+                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), groundModuleTypes, false, objectSize2, offset1, offset2);
                         }
                         else if (y == blocks.GetLength(1) - 1)
                         {
-                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), moduleTypes, true, objectSize2, offset, offset2);
+                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), moduleTypes, true, objectSize2, offset1, offset2);
                             modules[x, y, z].CollapseTo("empty0");
                         }
                         else
                         {
-                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), overModuleTypes, false, objectSize2, offset, offset2);
+                            modules[x, y, z] = new Module(new Vector3Int(x, y, z), overModuleTypes, false, objectSize2, offset1, offset2);
                         }
                     }
                 }
@@ -295,14 +283,11 @@ public class WFC3D : MonoBehaviour
                 currentIndex = 0;
                 currentCells = cellBlocks[currentIndex];
 
-                done = true;
+                step1Done = true;
                 UpdateValids();
 
             }
-
-
         }
-
     }
 
     // Gets a list of blocks with the lowest entropy (number of valid modules)
@@ -313,7 +298,7 @@ public class WFC3D : MonoBehaviour
 
         foreach (var module in modules)
         {
-            if (done && !currentCells.Contains(module.gridPosition))
+            if (step1Done && !currentCells.Contains(module.gridPosition))
                 continue;
 
             if ((module.collapsed == true) || (module.GetValidTypes().Count > lowest))
@@ -365,7 +350,7 @@ public class WFC3D : MonoBehaviour
             int y = block.y;
             int z = block.z;
 
-            if (done && !currentCells.Contains(block))
+            if (step1Done && !currentCells.Contains(block))
                 continue;
 
             if (CheckEdgeCollapsed() || (modules[x, y, z].IsEdge() && !CheckEdgeCollapsed()))
@@ -376,15 +361,12 @@ public class WFC3D : MonoBehaviour
                 else
                 {
                     List<string> options = new();
+
                     if (!CheckEdgeCollapsed())
-                    {
                         options = edgeModuleTypes.Select(tuple => tuple.Item1).ToList();
-                    }
 
                     else
-                    {
                         options = modules[x, y, z].GetModuleTypes().Select(tuple => tuple.Item1).ToList();
-                    }
 
                     if (x > 0)
                     {
@@ -464,11 +446,6 @@ public class WFC3D : MonoBehaviour
                         options = options.Intersect(valids).ToList();
                     }
 
-                    /*if (options.Count==0)
-                    { 
-                        Debug.Log("options=0");
-                    }*/
-
                     newModules[x, y, z].SetValidTypes(options);
                 }
             }
@@ -504,12 +481,9 @@ public class WFC3D : MonoBehaviour
             int z = cell.z;
 
             if (!modules[x, y, z].IsCollapsed())
-            {
                 return false;
-            }
         }
 
-        Debug.Log(true);
         return true;
     }
 

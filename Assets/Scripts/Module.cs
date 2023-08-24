@@ -29,6 +29,7 @@ public class Module
         this.isEdge = isEdge;
         this.factor = new Vector3(factor, factor, factor);
         this.offset = new Vector3(-offset, offset2, -offset);
+        type = "";
         model = null;
     }
 
@@ -115,6 +116,11 @@ public class Module
         }
         obj.transform.localScale = factor;
         model = GameObject.Instantiate(obj, Vector3.Scale(gridPosition, factor) + offset, Quaternion.Euler(new Vector3(0, angle, 0)));
+    }
+
+    public bool IsObjNull()
+    {
+        return (model == null);
     }
 
     public List<string> GetValidTypes()

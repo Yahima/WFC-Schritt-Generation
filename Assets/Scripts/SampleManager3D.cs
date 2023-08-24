@@ -8,7 +8,7 @@ public class SampleManager3D
     private readonly GameObject[] sampleModules;
     private readonly Dictionary<string, Tuple<GameObject, int>> gameObjects;
     private Dictionary<string, Dictionary<Dir, List<string>>> moduleRules;
-    private string tag;
+    private readonly string tag;
     private readonly float yOffset;
     private readonly float objectSize;
 
@@ -58,35 +58,20 @@ public class SampleManager3D
             }
         }
 
-        if (tag.Contains("2"))
-        {
-            foreach (var rule in moduleRules)
-            {
-                Debug.Log("Module:::::::::::::::" + rule);
-                foreach (var dir in rule.Value)
-                {
-                    Debug.Log("Direction:::::::::::::::" + dir);
-                    foreach (var dirRule in dir.Value)
-                    {
-                        Debug.Log(dirRule);
-                    }
-                }
-            }
-        }
-        Debug.Log(moduleRules.Count);
-
         return moduleRules;
     }
 
     private Dictionary<Dir, List<string>> RotateRules(Dictionary<Dir, List<string>> adjacents, int targetRotation, int currentRotation)
     {
-        Dictionary<Dir, List<string>> rotatedAdjacents = new Dictionary<Dir, List<string>>();
-        rotatedAdjacents.Add(Dir.Forward, new List<string>());
-        rotatedAdjacents.Add(Dir.Back, new List<string>());
-        rotatedAdjacents.Add(Dir.Left, new List<string>());
-        rotatedAdjacents.Add(Dir.Right, new List<string>());
-        rotatedAdjacents.Add(Dir.Up, new List<string>());
-        rotatedAdjacents.Add(Dir.Down, new List<string>());
+        Dictionary<Dir, List<string>> rotatedAdjacents = new()
+        {
+            { Dir.Forward, new List<string>() },
+            { Dir.Back, new List<string>() },
+            { Dir.Left, new List<string>() },
+            { Dir.Right, new List<string>() },
+            { Dir.Up, new List<string>() },
+            { Dir.Down, new List<string>() }
+        };
 
         int dirRotation = (targetRotation - currentRotation) % 4;
         if (dirRotation < 0)
