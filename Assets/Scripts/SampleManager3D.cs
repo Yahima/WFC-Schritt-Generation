@@ -8,17 +8,27 @@ public class SampleManager3D
     private readonly GameObject[] sampleModules;
     private readonly Dictionary<string, Tuple<GameObject, int>> gameObjects;
     private Dictionary<string, Dictionary<Dir, List<string>>> moduleRules;
-    private readonly string tag;
+    private string tag;
     private readonly float yOffset;
     private readonly float objectSize;
+    private readonly int emptyProbability;
+    private readonly int buildingHeight;
+    private readonly int wallWeight;
+    private readonly int streetGroundRatio;
+    private readonly int cornerProbability;
 
-    public SampleManager3D(string tag, float objectSize, float yOffset)
+    public SampleManager3D(string tag, float objectSize, float yOffset, int emptyProbability, int buildingHeight, int wallWeight, int streetGroundRatio)
     {
         sampleModules = GameObject.FindGameObjectsWithTag(tag);
         gameObjects = new Dictionary<string, Tuple<GameObject, int>>();
         this.tag = tag;
         this.objectSize = objectSize;
         this.yOffset = yOffset;
+        this.emptyProbability = emptyProbability;
+        this.buildingHeight = buildingHeight;
+        this.wallWeight = wallWeight;
+        this.streetGroundRatio = streetGroundRatio;
+        //this.cornerProbability = cornerProbability;
     }
 
     public Dictionary<string, Tuple<GameObject, int>> GetObjects()
@@ -30,48 +40,170 @@ public class SampleManager3D
     public Dictionary<string, Dictionary<Dir, List<string>>> GenerateRulesFromSamples()
     {
         moduleRules = new Dictionary<string, Dictionary<Dir, List<string>>>();
+        //List<String> rotatedSampleModuleNames = new List<String>();
+        //String sampleName;
 
         foreach (GameObject sampleModule in sampleModules)
         {
             if (!gameObjects.ContainsKey(sampleModule.name))
-                gameObjects.Add(sampleModule.name, new(sampleModule, sampleModule.GetComponent<ModuleData>().weight));
-
-            int rotations = GetRotations((int)sampleModule.transform.eulerAngles.y);
-            string moduleName = sampleModule.name + rotations.ToString();
-
-            /*if (sampleModule.name == "fassadewindow")
-                Debug.Log("");*/
-
-            if (!moduleRules.ContainsKey(moduleName))
             {
-                Dictionary<Dir, List<string>> adjacents = GetAdjacents(moduleName);
-                moduleRules.Add(moduleName, adjacents);
+                if (sampleModule.name.Contains("empty"))
+                    gameObjects.Add(sampleModule.name, new(sampleModule, emptyProbability));
 
-                string name = moduleName[0..^1];
-                int rotation = int.Parse(moduleName[^1..]);
+                else if (sampleModule.name.Contains("roof"))
+                    gameObjects.Add(sampleModule.name, new(sampleModule, buildingHeight));
 
-                for (int i = 0; i <= 3; i++)
+                else if (sampleModule.name.Contains("buildarea"))
+                    gameObjects.Add(sampleModule.name, new(sampleModule, streetGroundRatio));
+
+                else if (sampleModule.name.Contains("street"))
                 {
-                    if (i != rotation)
-                        moduleRules.Add(name + i.ToString(), RotateRules(adjacents, i, rotation));
+                    if (sampleModule.name.Contains("corner") || sampleModule.name.Contains("side") || sampleModule.name.Contains("cross"))
+                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio) / 4));
+                    else if (sampleModule.name.Contains("straight"))
+                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio) / 2));
+                }
+               // else if (sampleModule.name.Contains("wallcorner"))
+
+
+
+                else
+                    gameObjects.Add(sampleModule.name, new(sampleModule, wallWeight));  // sampleModule.GetComponent<ModuleData>().weight));
+            }
+                
+
+            String moduleName = sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y);
+
+            //sampleName = sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y);
+            //rotatedSampleModuleNames.Clear();
+            //if (sampleModule.GetComponent<ModuleData>().symmetry == "x")
+            //{
+            //    for (int i = 0; i <= 3; i++)
+            //    {
+            //        rotatedSampleModuleNames.Add(sampleModule.name + i);
+            //    }
+            //}
+
+            //else if (sampleModule.GetComponent<ModuleData>().symmetry == "l")
+            //{
+            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y));
+            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y + 180));
+            //}
+            //else
+            //{
+            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y));
+            //}
+
+            //foreach (String moduleName in rotatedSampleModuleNames) { 
+
+            Dictionary<Dir, List<string>> adjacents = GetAdjacents(moduleName);     // war moduleName
+            //Dictionary<Dir, List<string>> adjacents = GetAdjacents(sampleName);     // war moduleName
+
+            MergeRules(moduleName, adjacents);
+            ReverseRules(moduleName, adjacents);
+
+            string name = moduleName[0..^1];
+            int rotation = int.Parse(moduleName[^1..]);
+
+            Dictionary<Dir, List<string>> rotatedRules;
+
+            for (int i = 0; i <= 3; i++)
+            {
+
+                if (i != rotation)
+                {
+                    rotatedRules = RotateRules(adjacents, i, rotation);
+                    //moduleRules.Add(name + i.ToString(), RotateRules(adjacents, i, rotation));
+                    MergeRules(name + i.ToString(), rotatedRules);
+                    ReverseRules(name + i.ToString(), rotatedRules);
                 }
             }
+            //}
         }
+
+        //if (tag.Contains("2"))
+        //{
+        //    foreach (var rule in moduleRules)
+        //    {
+        //        Debug.Log("Module:::::::::::::::" + rule);
+        //        foreach (var dir in rule.Value)
+        //        {
+        //            Debug.Log("Direction:::::::::::::::" + dir);
+        //            foreach (var dirRule in dir.Value)
+        //            {
+        //                Debug.Log(dirRule);
+        //            }
+        //        }
+        //    }
+        //}
+        //Debug.Log(moduleRules.Count);
 
         return moduleRules;
     }
 
+    private void ReverseRules(string moduleName, Dictionary<Dir, List<string>> adjacents)
+    {
+        Dir newDir = Dir.Forward;
+        foreach (var dir in adjacents.Keys)
+        {
+            switch (dir)
+            {
+                case Dir.Forward: newDir = Dir.Back; break;
+                case Dir.Back: newDir = Dir.Forward; break;
+                case Dir.Left: newDir = Dir.Right; break;
+                case Dir.Right: newDir = Dir.Left; break;
+                case Dir.Up: newDir = Dir.Down; break;
+                case Dir.Down: newDir = Dir.Up; break;
+            }
+
+            foreach (var tile in adjacents[dir])
+            {
+                Dictionary<Dir, List<string>> revRules = new Dictionary<Dir, List<string>>();
+                revRules.Add(Dir.Forward, new List<string>());
+                revRules.Add(Dir.Back, new List<string>());
+                revRules.Add(Dir.Left, new List<string>());
+                revRules.Add(Dir.Right, new List<string>());
+                revRules.Add(Dir.Up, new List<string>());
+                revRules.Add(Dir.Down, new List<string>());
+                List<string> newRule = revRules[newDir];
+                newRule.Add(moduleName);
+                MergeRules(tile, revRules);
+            }
+        }
+    }
+
+    private void MergeRules(string moduleName, Dictionary<Dir, List<string>> adjacents)
+    {
+        if (!moduleRules.ContainsKey(moduleName))
+        {
+            moduleRules.Add(moduleName, adjacents);
+        }
+        else
+        {
+            Dictionary<Dir, List<string>> existingAdjacents = moduleRules[moduleName];
+            foreach (var dir in adjacents.Keys)
+            {
+                List<string> existingRules = existingAdjacents[dir];
+                foreach (var rule in adjacents[dir])
+                {
+                    if (!existingRules.Contains(rule))
+                    {
+                        existingRules.Add(rule);
+                    }
+                }
+            }
+        }
+    }
+
     private Dictionary<Dir, List<string>> RotateRules(Dictionary<Dir, List<string>> adjacents, int targetRotation, int currentRotation)
     {
-        Dictionary<Dir, List<string>> rotatedAdjacents = new()
-        {
-            { Dir.Forward, new List<string>() },
-            { Dir.Back, new List<string>() },
-            { Dir.Left, new List<string>() },
-            { Dir.Right, new List<string>() },
-            { Dir.Up, new List<string>() },
-            { Dir.Down, new List<string>() }
-        };
+        Dictionary<Dir, List<string>> rotatedAdjacents = new Dictionary<Dir, List<string>>();
+        rotatedAdjacents.Add(Dir.Forward, new List<string>());
+        rotatedAdjacents.Add(Dir.Back, new List<string>());
+        rotatedAdjacents.Add(Dir.Left, new List<string>());
+        rotatedAdjacents.Add(Dir.Right, new List<string>());
+        rotatedAdjacents.Add(Dir.Up, new List<string>());
+        rotatedAdjacents.Add(Dir.Down, new List<string>());
 
         int dirRotation = (targetRotation - currentRotation) % 4;
         if (dirRotation < 0)
@@ -530,7 +662,7 @@ public class SampleManager3D
                 gameObject = colliders[0].gameObject;
         if (colliders.Length > 1)
         {
-            Debug.Log("big"  + tag + "pos" + position);
+            Debug.Log("big" + tag + "pos" + position);
         }
 
         return gameObject;

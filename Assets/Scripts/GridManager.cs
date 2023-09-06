@@ -96,19 +96,34 @@ public class GridManager
 
         foreach (List<Vector2Int> group in cellGroups)
         {
-            List<Vector3Int> grid = new();
+            //List<Vector3Int> grid = new();
+            //List<Vector3Int> groundGrid = new();
 
-            foreach (Vector2Int cell in group)
+            //foreach (Vector2Int cell in group)
+            //{
+            //    groundGrid.Add(new Vector3Int(cell.x, 0, cell.y));
+            //    for (int i = 1; i < height; i++)
+            //    {
+            //        grid.Add(new Vector3Int(cell.x, i, cell.y));
+            //    }
+            //    grids.Add(grid);
+            //}
+
+            //grids.Add(groundGrid);
+            //grids.Add(grid);
+
+
+            for (int i = 0; i < height; i++)
             {
-                for (int i = 0; i < height; i++)
+                List<Vector3Int> grid = new();
+                foreach (Vector2Int cell in group)
                 {
                     grid.Add(new Vector3Int(cell.x, i, cell.y));
                 }
+                grids.Add(grid);
+
             }
-
-            grids.Add(grid);
         }
-
         return grids;
     }
 
