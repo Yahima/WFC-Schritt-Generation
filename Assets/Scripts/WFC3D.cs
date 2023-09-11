@@ -7,7 +7,7 @@ using TMPro;
 public class WFC3D : MonoBehaviour
 {
     // Grid dimensions
-    
+
 
     public string step1Tag;
     public string step2Tag;
@@ -69,7 +69,7 @@ public class WFC3D : MonoBehaviour
     private List<string> errorStates;
     private List<History3D> history;
 
-    private List<String> historyLog;    // zum testen
+    //private List<String> historyLog;    // zum testen
 
     //private bool step1Done = false;
 
@@ -91,7 +91,7 @@ public class WFC3D : MonoBehaviour
     void Start()
     {
         Debug.Log("step 0");
-
+        step = 0;
         Debug.Log(int.Parse(widthInput.text));
         xSize = int.Parse(widthInput.text);
         ySize = 1;
@@ -101,7 +101,7 @@ public class WFC3D : MonoBehaviour
         Debug.Log(buildingHeight);
         emptyProbability = int.Parse(emptyInput.text);
         streetGroundRatio = int.Parse(streetGroundInput.text);
-        cornerProbability = int.Parse(cornerInput.text);
+        cornerProbability = 5;// int.Parse(cornerInput.text);
 
         gridManager = new GridManager(xSize, ySize, zSize);
         blocks = gridManager.CreateGrid();
@@ -143,13 +143,13 @@ public class WFC3D : MonoBehaviour
         errorStates = new List<string>();
         errorCount = new Dictionary<Vector3Int, int>();
         history = new List<History3D>();
-        historyLog = new List<string>();
+        //historyLog = new List<string>();
 
         cellBlocks = new List<List<Vector3Int>>();
         currentCells = new List<Vector3Int>();
         entropyCells = new HashSet<Vector3Int>();
         cellBlocks.Add(currentCells);   // damit ein Element enthalten ist
-
+        currentIndex = 0;
         foreach (Vector3Int block in blocks)
         {
             currentCells.Add(block);
@@ -168,7 +168,7 @@ public class WFC3D : MonoBehaviour
 
         int[,] grid = new int[xSize, zSize];
 
-        
+
         foreach (var module in modules)
         {
             int x = module.GetGridPosition().x;
@@ -183,7 +183,7 @@ public class WFC3D : MonoBehaviour
 
         int[,] dividedGrid = gridManager.DivideGrid(grid);
 
-        sampleManager = new SampleManager3D (step2Tag, objectSize2, yOffset2, emptyProbability, buildingHeight, Mathf.CeilToInt(buildingHeight / 2) + 1, streetGroundRatio , cornerProbability);
+        sampleManager = new SampleManager3D(step2Tag, objectSize2, yOffset2, emptyProbability, buildingHeight, Mathf.CeilToInt(buildingHeight / 2) + 1, streetGroundRatio, cornerProbability);
         rules = sampleManager.GenerateRulesFromSamples();
         gameObjects = sampleManager.GetObjects();
         moduleTypes = new List<Tuple<string, int>>();
@@ -241,126 +241,152 @@ public class WFC3D : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
-        Vector3Int tempCell;
-
-        UpdateEntropy();
-        if (lowEntropyList.Count > 0 || currentIndex < cellBlocks.Count - 1)
+        if (step < 2)
         {
 
-            if (lowEntropyList.Count > 0)
+            UpdateEntropy();
+            if (lowEntropyList.Count > 0 || currentIndex < cellBlocks.Count - 1)
             {
 
-
-                System.Random random = new System.Random();
-                int index = random.Next(0, lowEntropyList.Count);
-                Vector3Int currentCell = lowEntropyList[0]; 
-                Module currentModule = modules[currentCell.x, currentCell.y, currentCell.z];
-
-                bool error = true;
-
-                while (currentModule.GetValidTypes().Count > 0 && error)
+                if (lowEntropyList.Count > 0)
                 {
-                    currentModule.Collapse();
 
-                    if (errorStates.Contains(CurrentState()))
-                        currentModule.RemoveType(currentModule.GetTileType());
 
-                    else
+                    System.Random random = new System.Random();
+                    int index = random.Next(0, lowEntropyList.Count);
+                    Vector3Int currentCell = lowEntropyList[0];
+                    Module currentModule = modules[currentCell.x, currentCell.y, currentCell.z];
+
+                    bool error = true;
+
+                    while (currentModule.GetValidTypes().Count > 0 && error)
                     {
+                        currentModule.Collapse();
 
-                        history.Add(new History3D(CurrentState(), new(currentCell, currentModule.GetTileType())));
-                        historyLog.Add("Add :" + currentCell.ToString() + " - " + currentModule.GetTileType());
-                        entropyCells.Remove(currentCell);
-                        error = false;
-                    }
-                }
+                        if (errorStates.Contains(CurrentState()))
+                            currentModule.RemoveType(currentModule.GetTileType());
 
-                if (error)
-                {
-                    Vector3Int lastHistoryCell;
-                    int errCount = 0;
-                    if (errorCount.TryGetValue(currentCell, out errCount))
-                    {
-                        errorCount[currentCell] = errCount + 1;
-                    }
-                    else
-                    {
-                        errorCount.Add(currentCell, 1);
-                    }
-
-                    if (errCount < 10)
-                    {
-                        currentModule.ResetModule();
-                        entropyCells.Add(currentCell);
-
-                        errorState = CurrentState();
-                        if (!errorStates.Contains(errorState))
-                            errorStates.Add(errorState);
-                    }
-
-                    if (errCount > 10)
-                    {
-                        foreach (var cell in currentCells)
+                        else
                         {
-                            modules[cell.x, cell.y, cell.z].ResetModule();
+
+                            history.Add(new History3D(CurrentState(), new(currentCell, currentModule.GetTileType())));
+                            //historyLog.Add("Add :" + currentCell.ToString() + " - " + currentModule.GetTileType());
+                            entropyCells.Remove(currentCell);
+                            error = false;
                         }
-                        Debug.Log("reload block " + currentIndex);
-                        loadBlock();
-
                     }
-                    else
+
+                    if (error)
                     {
-                        if (history.Count == 0)
+                        Vector3Int lastHistoryCell;
+                        int errCount = 0;
+                        if (errorCount.TryGetValue(currentCell, out errCount))
                         {
-                            Debug.Log("History empty");
+                            errorCount[currentCell] = errCount + 1;
+                        }
+                        else
+                        {
+                            errorCount.Add(currentCell, 1);
                         }
 
-                        lastHistoryCell = history[^1].Step.Item1;
-                        modules[lastHistoryCell.x, lastHistoryCell.y, lastHistoryCell.z].ResetModule();
-                        history.Remove(history[^1]);
-                        historyLog.Add("Rem :" + lastHistoryCell.ToString());
-                        entropyCells.Add(lastHistoryCell);
+                        if (errCount < 10)
+                        {
+                            currentModule.ResetModule();
+                            entropyCells.Add(currentCell);
+
+                            errorState = CurrentState();
+                            if (!errorStates.Contains(errorState))
+                                errorStates.Add(errorState);
+                        }
+
+                        if (errCount > 10)
+                        {
+                            foreach (var cell in currentCells)
+                            {
+                                modules[cell.x, cell.y, cell.z].ResetModule();
+                            }
+                            Debug.Log("reload block " + currentIndex);
+                            loadBlock();
+
+                        }
+                        else
+                        {
+                            if (history.Count == 0)
+                            {
+                                Debug.Log("History empty");
+                            }
+
+                            lastHistoryCell = history[^1].Step.Item1;
+                            modules[lastHistoryCell.x, lastHistoryCell.y, lastHistoryCell.z].ResetModule();
+                            history.Remove(history[^1]);
+                            //historyLog.Add("Rem :" + lastHistoryCell.ToString());
+                            entropyCells.Add(lastHistoryCell);
+                        }
+
+                        UpdateValids();
+
+
                     }
 
-                    UpdateValids();
+                    if (currentModule.IsCollapsed() && !currentModule.GetTileType().Contains("empty"))
+                        currentModule.SetObject(gameObjects[currentModule.GetTileType()[0..^1]].Item1);
 
+                    UpdateValidsNeighbors(currentCell);
 
+                    lastState = CurrentState();
                 }
 
-                if (currentModule.IsCollapsed() && !currentModule.GetTileType().Contains("empty"))
-                    currentModule.SetObject(gameObjects[currentModule.GetTileType()[0..^1]].Item1);
-
-                UpdateValidsNeighbors(currentCell);
-
-                lastState = CurrentState();
+                if (step == 1)
+                {
+                    if (CheckBlockCollapsed(currentCells))
+                    {
+                        if (currentIndex < cellBlocks.Count - 1)
+                        {
+                            currentIndex++;
+                            loadBlock();
+                        }
+                    }
+                }
             }
-
-            if (step == 1)
+            else
             {
-                if (CheckBlockCollapsed(currentCells))
+                if (step < 1)
                 {
-                    if (currentIndex < cellBlocks.Count - 1)
-                    {
-                        currentIndex++;
-                        loadBlock();
-                    }
+                    initStep1();
+                }
+                else if (step < 2)
+                {
+                    Debug.Log("done");
+                    step = 2;
                 }
             }
         }
-
-        else
+        else if (step == 3)
         {
-            if (step < 1)
+            // reset scene
+            foreach (var module in streetModules)
             {
-                initStep1();
+                module.SetObjectNull();
             }
-            else if (step < 2)
+
+            foreach (var module in modules)
             {
-                Debug.Log("done");
-                step = 2;
+                module.SetObjectNull();
             }
+            step = 4;
         }
+        else if (step == 4)
+        {
+            // restart
+            step = 2;       // damit in den 2 sec. Warten nichts auf der Oberfläche passiert
+            lastState = "";
+            errorState = "";
+            //Start();
+            Invoke("Start", 2);     // wartet 2 sec. ruft dann Start() auf
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            Application.Quit();
     }
 
     private void loadBlock()
@@ -368,7 +394,7 @@ public class WFC3D : MonoBehaviour
         errorStates = new List<string>();
         errorCount = new Dictionary<Vector3Int, int>();
         history = new List<History3D>();
-        historyLog = new List<string>();
+        //historyLog = new List<string>();
         currentCells = cellBlocks[currentIndex];
         entropyCells.Clear();
         foreach (Vector3Int cell in currentCells)
@@ -432,7 +458,7 @@ public class WFC3D : MonoBehaviour
         string separator = "-";
         Module module;
         //foreach (var module in modules)
-        foreach (var cell in currentCells) 
+        foreach (var cell in currentCells)
         {
             module = modules[cell.x, cell.y, cell.z];
             if (!module.IsCollapsed())
@@ -450,7 +476,7 @@ public class WFC3D : MonoBehaviour
 
         bool edgeCollapsed = CheckEdgeCollapsed();
 
-        foreach (Vector3Int block in currentCells)   
+        foreach (Vector3Int block in currentCells)
         {
             UpdateValidsCell(block, edgeCollapsed);
         }
@@ -620,10 +646,10 @@ public class WFC3D : MonoBehaviour
                 modules[x, y, z].SetValidTypes(options);
             }
         }
-      
+
     }
 
-    
+
 
     private bool CheckFullyCollapsed()
     {
@@ -720,19 +746,6 @@ public class WFC3D : MonoBehaviour
 
     public void Restart()
     {
-        foreach (var module in streetModules)
-        {
-            module.SetObjectNull();
-        }
-
-        foreach (var module in modules)
-        {
-            module.SetObjectNull();
-        }
-
-        step = 0;
-        lastState = "";
-        errorState = "";
-        Start();
+        step = 3;
     }
 }

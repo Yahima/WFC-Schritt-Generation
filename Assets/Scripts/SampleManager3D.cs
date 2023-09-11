@@ -63,15 +63,9 @@ public class SampleManager3D
                     else if (sampleModule.name.Contains("straight"))
                         gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio)));
                 }
-                else if (sampleModule.name.Contains("wallcorner"))
-                {
-                    gameObjects.Add(sampleModule.name, new(sampleModule, (cornerProbability)));
-                }
-
-
 
                 else
-                    gameObjects.Add(sampleModule.name, new(sampleModule, wallWeight));  // sampleModule.GetComponent<ModuleData>().weight));
+                    gameObjects.Add(sampleModule.name, new(sampleModule, wallWeight));  
             }
                 
 
