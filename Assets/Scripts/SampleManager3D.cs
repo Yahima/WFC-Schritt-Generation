@@ -17,7 +17,7 @@ public class SampleManager3D
     private readonly int streetGroundRatio;
     private readonly int cornerProbability;
 
-    public SampleManager3D(string tag, float objectSize, float yOffset, int emptyProbability, int buildingHeight, int wallWeight, int streetGroundRatio)
+    public SampleManager3D (string tag, float objectSize, float yOffset, int emptyProbability, int buildingHeight, int wallWeight, int streetGroundRatio, int cornerProbability)
     {
         sampleModules = GameObject.FindGameObjectsWithTag(tag);
         gameObjects = new Dictionary<string, Tuple<GameObject, int>>();
@@ -28,7 +28,7 @@ public class SampleManager3D
         this.buildingHeight = buildingHeight;
         this.wallWeight = wallWeight;
         this.streetGroundRatio = streetGroundRatio;
-        //this.cornerProbability = cornerProbability;
+        this.cornerProbability = cornerProbability;
     }
 
     public Dictionary<string, Tuple<GameObject, int>> GetObjects()
@@ -59,11 +59,14 @@ public class SampleManager3D
                 else if (sampleModule.name.Contains("street"))
                 {
                     if (sampleModule.name.Contains("corner") || sampleModule.name.Contains("side") || sampleModule.name.Contains("cross"))
-                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio) / 4));
+                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio)));
                     else if (sampleModule.name.Contains("straight"))
-                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio) / 2));
+                        gameObjects.Add(sampleModule.name, new(sampleModule, (100 - streetGroundRatio)));
                 }
-               // else if (sampleModule.name.Contains("wallcorner"))
+                else if (sampleModule.name.Contains("wallcorner"))
+                {
+                    gameObjects.Add(sampleModule.name, new(sampleModule, (cornerProbability)));
+                }
 
 
 
@@ -74,30 +77,8 @@ public class SampleManager3D
 
             String moduleName = sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y);
 
-            //sampleName = sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y);
-            //rotatedSampleModuleNames.Clear();
-            //if (sampleModule.GetComponent<ModuleData>().symmetry == "x")
-            //{
-            //    for (int i = 0; i <= 3; i++)
-            //    {
-            //        rotatedSampleModuleNames.Add(sampleModule.name + i);
-            //    }
-            //}
-
-            //else if (sampleModule.GetComponent<ModuleData>().symmetry == "l")
-            //{
-            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y));
-            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y + 180));
-            //}
-            //else
-            //{
-            //    rotatedSampleModuleNames.Add(sampleModule.name + GetRotations((int)sampleModule.transform.eulerAngles.y));
-            //}
-
-            //foreach (String moduleName in rotatedSampleModuleNames) { 
-
             Dictionary<Dir, List<string>> adjacents = GetAdjacents(moduleName);     // war moduleName
-            //Dictionary<Dir, List<string>> adjacents = GetAdjacents(sampleName);     // war moduleName
+
 
             MergeRules(moduleName, adjacents);
             ReverseRules(moduleName, adjacents);
@@ -656,14 +637,9 @@ public class SampleManager3D
     {
         GameObject gameObject = null;
         Collider[] colliders = Physics.OverlapSphere(position, 0.1f);
-        // Debug.Log(colliders.Length);
         if (colliders.Length > 0)
             if (colliders[0].gameObject.CompareTag(tag))
                 gameObject = colliders[0].gameObject;
-        if (colliders.Length > 1)
-        {
-            Debug.Log("big" + tag + "pos" + position);
-        }
 
         return gameObject;
     }

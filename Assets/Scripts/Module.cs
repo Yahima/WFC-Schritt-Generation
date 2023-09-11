@@ -55,7 +55,8 @@ public class Module
             }
             else if (type.Contains("roof"))
             {
-                weight = weight - Math.Abs(gridPosition.y - weight);
+                weight = Math.Max(1, weight - Math.Abs(gridPosition.y - weight));
+
             }
 
             for (int i = 0; i < weight * 100; i++)
@@ -155,7 +156,6 @@ public class Module
             default:
                 break;
         }
-        //obj.transform.localScale = factor;
         model = GameObject.Instantiate(obj, Vector3.Scale(gridPosition, factor) + offset, Quaternion.Euler(new Vector3(0, angle, 0)));
         model.transform.localScale = factor;
     }
